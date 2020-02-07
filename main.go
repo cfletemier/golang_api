@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"github.com/gorilla/mux"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 type DBConfig struct {
@@ -49,16 +51,16 @@ const personSchema = `
     "additionalProperties": false,
     "properties": {
         "firstName": {
-			"type": "string"
-			"minLength": 1,
+			"type": "string",
+			"minLength": 1
         },
         "lastName": {
-			"type": "string"
-			"minLength": 1,
-		},
+			"type": "string",
+			"minLength": 1
+        },
 		"age": {
 			"type": "integer"
-        },
+        }
     },
     "required": [
 		"firstName",
@@ -67,6 +69,32 @@ const personSchema = `
     ]
 }
 `
+
+func validatePeople(payload string) (errors []string) {
+	schemaLoader := gojsonschema.NewStringLoader(personSchema)
+
+	documentLoader := gojsonschema.NewStringLoader(string(payload))
+
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+    if err != nil {
+        panic(err.Error())
+	}
+
+	if result.Valid() {
+    	fmt.Printf("The document is valid\n")
+    } else {
+		// fmt.Printf("The document is not valid. see errors :\n")
+		errors := []string{"The document is not valid. see errors :\n"}
+        for _, err := range result.Errors() {
+			errors = append(errors, fmt.Sprintf("- %s\n", err)) 
+		}
+		if len(errors) > 1 {
+			return errors
+		}
+	}
+	
+	return nil
+}
 
 func main() {
 	dbconfig := &DBConfig{user: "root", password: "mysql", dbname: "golang_api"}
@@ -95,6 +123,13 @@ func (context *handlerContext) PeoplePostHandler(w http.ResponseWriter, r *http.
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+	}
+
+	schemaErrors := validatePeople(string(body))
+
+	if schemaErrors != nil {
+		http.Error(w, strings.Join(schemaErrors, ""), http.StatusBadRequest)
+		return
 	}
 
 	person := createUpdatePerson{}
@@ -141,6 +176,13 @@ func (context *handlerContext) PeoplePutHandler(w http.ResponseWriter, r *http.R
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+	}
+
+	schemaErrors := validatePeople(string(body))
+
+	if schemaErrors != nil {
+		http.Error(w, strings.Join(schemaErrors, ""), http.StatusBadRequest)
+		return
 	}
 
 	person := createUpdatePerson{}
@@ -245,4 +287,5 @@ func (context *handlerContext) PeopleDeleteHandler(w http.ResponseWriter, r *htt
 	}
 
 	fmt.Fprintf(w, "succcess!")
+
 }
