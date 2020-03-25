@@ -12,6 +12,8 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/xeipuuv/gojsonschema"
+
+	"github.com/cfletemier/golang_api/models"
 )
 
 type DBConfig struct {
@@ -26,14 +28,6 @@ type Database struct {
 
 type handlerContext struct {
 	database	*Database
-}
-
-//db model
-type Person struct {
-	Id			string	`json:"id"`
-	FirstName	string	`json:"firstName"`
-	LastName	string	`json:"lastName"`
-	Age			int		`json:"age"`
 }
 
 type createUpdatePerson struct {
@@ -98,6 +92,7 @@ func validatePeople(payload string) (errors []string) {
 
 func main() {
 	dbconfig := &DBConfig{user: "root", password: "mysql", dbname: "golang_api"}
+
 	connectionUrl := fmt.Sprintf("%s:%s@/%s?charset=utf8&parseTime=True&loc=Local", dbconfig.user, dbconfig.password, dbconfig.dbname)
 
 	db, err := gorm.Open("mysql",  connectionUrl)
@@ -123,6 +118,7 @@ func (context *handlerContext) PeoplePostHandler(w http.ResponseWriter, r *http.
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	schemaErrors := validatePeople(string(body))
@@ -137,9 +133,10 @@ func (context *handlerContext) PeoplePostHandler(w http.ResponseWriter, r *http.
 	err = json.Unmarshal([]byte(body), &person)
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
-	newPerson := Person{
+	newPerson := models.Person{
 		FirstName: person.FirstName,
 		LastName: person.LastName,
 		Age: person.Age,
@@ -149,6 +146,7 @@ func (context *handlerContext) PeoplePostHandler(w http.ResponseWriter, r *http.
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	fmt.Fprintf(w, "succcess!")
@@ -161,14 +159,16 @@ func (context *handlerContext) PeoplePutHandler(w http.ResponseWriter, r *http.R
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
-	var personRecord Person
+	var personRecord models.Person
 
 	err =  context.database.DB.Find(&personRecord, personID).Error
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -176,6 +176,7 @@ func (context *handlerContext) PeoplePutHandler(w http.ResponseWriter, r *http.R
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	schemaErrors := validatePeople(string(body))
@@ -190,6 +191,7 @@ func (context *handlerContext) PeoplePutHandler(w http.ResponseWriter, r *http.R
 	err = json.Unmarshal([]byte(body), &person)
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	update := false
@@ -213,6 +215,7 @@ func (context *handlerContext) PeoplePutHandler(w http.ResponseWriter, r *http.R
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	msg := ""
@@ -232,38 +235,43 @@ func (context *handlerContext) PeopleGetDetailHandler(w http.ResponseWriter, r *
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
-	var personRecord Person
+	var personRecord models.Person
 
 	err = context.database.DB.Find(&personRecord, personID).Error
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	payload, err := json.Marshal(personRecord)
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	fmt.Fprintf(w, "%s", payload)
 }
 
 func (context *handlerContext) PeopleGetCollectionHandler(w http.ResponseWriter, r *http.Request) {
-	var personRecords []Person
+	var personRecords []models.Person
 
 	err := context.database.DB.Find(&personRecords).Error
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	payload, err := json.Marshal(personRecords)
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	fmt.Fprintf(w, "%s", payload)
@@ -276,14 +284,16 @@ func (context *handlerContext) PeopleDeleteHandler(w http.ResponseWriter, r *htt
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
-	var personRecord Person
+	var personRecord models.Person
 
 	err = context.database.DB.Delete(&personRecord, personID).Error
 
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
+		return
 	}
 
 	fmt.Fprintf(w, "succcess!")
